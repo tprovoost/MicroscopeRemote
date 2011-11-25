@@ -15,7 +15,7 @@ public class MicroscopeRemotePlugin extends MicroscopePlugin {
 	@Override
 	public void start() {
 		// Creation of the frame.
-		mainFrame = new RemoteFrame();
+		mainFrame = new RemoteFrame(this);
 
 		// add the plugin
 		mainGui.addPlugin(this);

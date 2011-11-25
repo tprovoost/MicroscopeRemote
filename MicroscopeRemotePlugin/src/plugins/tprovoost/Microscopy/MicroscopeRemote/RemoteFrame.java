@@ -4,12 +4,20 @@ import icy.gui.component.IcyLogo;
 import icy.gui.frame.IcyFrame;
 import icy.gui.util.GuiUtil;
 import icy.gui.util.LookAndFeelUtil;
+import icy.plugin.abstract_.Plugin;
 import icy.system.thread.ThreadUtil;
+import icy.util.StringUtil;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.MultipleGradientPaint.CycleMethod;
+import java.awt.Paint;
+import java.awt.RadialGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.event.ActionEvent;
@@ -30,8 +38,6 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import icy.util.StringUtil;
-
 
 import plugins.tprovoost.Microscopy.MicroManagerForIcy.MicroscopeCore;
 import plugins.tprovoost.Microscopy.MicroManagerForIcy.Tools.StageListener;
@@ -51,34 +57,38 @@ import plugins.tprovoost.Microscopy.MicroManagerForIcy.Tools.StageMover;
 public class RemoteFrame extends IcyFrame {
 
 	// -------
-	//   GUI
+	// GUI
 	// -------
+	Plugin plugin;
 	private IcyLogo _logo_remote;
-	private JSlider _slider_speed;
-	private JLabel _lbl_x;
-	private JLabel _lbl_y;
-	private JLabel _lbl_z;
-	private JCheckBox cb_invert_x;
-	private JCheckBox cb_invert_y;
+	private JSlider _sliderSpeed;
+	private JLabel _lblX;
+	private JLabel _lblY;
+	private JLabel _lblZ;
+	private JCheckBox _cbInvertX;
+	private JCheckBox _cbInvertY;
+
+	// CONSTANTS
+	private static String currentPath = "plugins/tprovoost/Microscopy/MicroscopeRemote/images/";
 
 	// -----------
 	// PREFERENCES
 	// -----------
-	private Preferences _prefs;	
+	private Preferences _prefs;
 	private static final String REMOTE = "prefs_remote";
 	private static final String SPEED = "speed";
 	private static final String INVERTX = "invertx";
 	private static final String INVERTY = "inverty";
 
-	public RemoteFrame() {
-		super("Remote", true, true, true, true);
-		JPanel panel_all = new JPanel();
-		panel_all.setLayout(new BoxLayout(panel_all, BoxLayout.Y_AXIS));
+	public RemoteFrame(MicroscopeRemotePlugin plugin) {
+		super("Remote", false, true, true, true);
+		this.plugin = plugin;
+		JPanel panelAll = new JPanel();
+		panelAll.setLayout(new BoxLayout(panelAll, BoxLayout.Y_AXIS));
 
 		_logo_remote = new IcyLogo("Remote");
-		_logo_remote.setPreferredSize(new Dimension(0, 80));
 		_logo_remote.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-		panel_all.add(_logo_remote);
+		panelAll.add(_logo_remote);
 
 		// -------------
 		// MOUSE MOVER
@@ -88,84 +98,83 @@ public class RemoteFrame extends IcyFrame {
 		panel_mover.add(new PanelMoverXY());
 		panel_mover.add(Box.createRigidArea(new Dimension(20, 10)));
 		panel_mover.add(new PanelMoverZ());
-		panel_all.add(panel_mover);
+		panelAll.add(panel_mover);
 
 		// ---------
 		// SPEED
 		// ---------
 		JPanel panel_speed = GuiUtil.generatePanel("Speed");
 		panel_speed.setLayout(new BoxLayout(panel_speed, BoxLayout.X_AXIS));
-		_slider_speed = new JSlider(1, 10, 1);
-		final JLabel lbl_value = new JLabel("" + _slider_speed.getValue());
+		_sliderSpeed = new JSlider(1, 10, 1);
+		final JLabel lbl_value = new JLabel("" + _sliderSpeed.getValue());
 
-		_slider_speed.addChangeListener(new ChangeListener() {
+		_sliderSpeed.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent changeevent) {
-				lbl_value.setText("" + _slider_speed.getValue());
-				_prefs.putInt(SPEED, _slider_speed.getValue());
+				lbl_value.setText("" + _sliderSpeed.getValue());
+				_prefs.putInt(SPEED, _sliderSpeed.getValue());
 			}
 		});
-
-		panel_speed.add(_slider_speed);
+		panel_speed.add(_sliderSpeed);
 		panel_speed.add(Box.createRigidArea(new Dimension(20, 10)));
 		panel_speed.add(lbl_value);
-		panel_all.add(panel_speed);
+		panelAll.add(panel_speed);
 
 		// -----------
 		// COORDINATES
 		// ----------
-		_lbl_x = new JLabel("0.0000 µm");
-		_lbl_y = new JLabel("0.0000 µm");
-		_lbl_z = new JLabel("0.0000 µm");
+		_lblX = new JLabel("0.0000 µm");
+		_lblY = new JLabel("0.0000 µm");
+		_lblZ = new JLabel("0.0000 µm");
 		JPanel panel_coords = GuiUtil.generatePanel("Current Position");
 		panel_coords.setLayout(new BoxLayout(panel_coords, BoxLayout.X_AXIS));
 		panel_coords.add(Box.createHorizontalGlue());
-		panel_coords.add(new JLabel("x : "));
-		panel_coords.add(_lbl_x);
-		panel_coords.add(new JLabel(" y : "));
-		panel_coords.add(_lbl_y);
-		panel_coords.add(new JLabel(" z : "));
-		panel_coords.add(_lbl_z);
+		panel_coords.add(new JLabel("x: "));
+		panel_coords.add(_lblX);
+		panel_coords.add(new JLabel(" y: "));
+		panel_coords.add(_lblY);
+		panel_coords.add(new JLabel(" z: "));
+		panel_coords.add(_lblZ);
 		panel_coords.add(Box.createHorizontalGlue());
-		panel_all.add(panel_coords);
+		panelAll.add(panel_coords);
 
 		// -------------------
 		// INVERT CHEBKBOXES
 		// -------------------
-		cb_invert_x = new JCheckBox("Invert X-Axis");
-		cb_invert_x.addActionListener(new ActionListener() {
+		_cbInvertX = new JCheckBox("Invert X-Axis");
+		_cbInvertX.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				_prefs.putBoolean(INVERTX, cb_invert_x.isSelected());
+				_prefs.putBoolean(INVERTX, _cbInvertX.isSelected());
 				;
 			}
 		});
 		JPanel panel_invertX = new JPanel();
 		panel_invertX.add(Box.createHorizontalGlue());
-		panel_invertX.add(cb_invert_x);
+		panel_invertX.add(_cbInvertX);
 		panel_invertX.add(Box.createHorizontalGlue());
 
-		cb_invert_y = new JCheckBox("Invert Y-Axis");
-		cb_invert_y.addActionListener(new ActionListener() {
+		_cbInvertY = new JCheckBox("Invert Y-Axis");
+		_cbInvertY.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				_prefs.putBoolean(INVERTY, cb_invert_y.isSelected());
+				_prefs.putBoolean(INVERTY, _cbInvertY.isSelected());
 			}
 		});
 
 		JPanel panel_invertY = new JPanel();
 		panel_invertY.add(Box.createHorizontalGlue());
-		panel_invertY.add(cb_invert_y);
+		panel_invertY.add(_cbInvertY);
 		panel_invertY.add(Box.createHorizontalGlue());
 
-		JPanel panel_invert = GuiUtil.generatePanel("Axis tranformation");
-		panel_invert.setLayout(new BoxLayout(panel_invert, BoxLayout.Y_AXIS));
-		panel_invert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-		panel_invert.add(panel_invertX);
-		panel_invert.add(panel_invertY);
-		panel_all.add(panel_invert);
+		JPanel panelInvert = GuiUtil.generatePanel("Axis tranformation");
+		panelInvert.setLayout(new BoxLayout(panelInvert, BoxLayout.Y_AXIS));
+		panelInvert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+		panelInvert.add(panel_invertX);
+		panelInvert.add(panel_invertY);
+		panelAll.add(panelInvert);
 
-		add(panel_all);
+		add(panelAll);
 
 		setVisible(true);
 		validate();
@@ -174,14 +183,14 @@ public class RemoteFrame extends IcyFrame {
 		center();
 		requestFocus();
 		loadPreferences();
-		
+
 		StageMover.addListener(new StageListener() {
-			
+
 			@Override
 			public void stageMoved(final double x, final double y, final double z) {
-				_lbl_x.setText(StringUtil.toString(x, 2) + " µm");
-				_lbl_y.setText(StringUtil.toString(y, 2) + " µm");
-				_lbl_z.setText(StringUtil.toString(z, 2) + " µm");
+				_lblX.setText(StringUtil.toString(x, 2) + " µm");
+				_lblY.setText(StringUtil.toString(y, 2) + " µm");
+				_lblZ.setText(StringUtil.toString(z, 2) + " µm");
 			}
 		});
 	}
@@ -192,9 +201,9 @@ public class RemoteFrame extends IcyFrame {
 	private void loadPreferences() {
 		Preferences root = Preferences.userNodeForPackage(getClass());
 		_prefs = root.node(root.absolutePath() + "/" + REMOTE);
-		_slider_speed.setValue(_prefs.getInt(SPEED, 1));
-		cb_invert_x.setSelected(_prefs.getBoolean(INVERTX, false));
-		cb_invert_y.setSelected(_prefs.getBoolean(INVERTY, false));
+		_sliderSpeed.setValue(_prefs.getInt(SPEED, 1));
+		_cbInvertX.setSelected(_prefs.getBoolean(INVERTX, false));
+		_cbInvertY.setSelected(_prefs.getBoolean(INVERTY, false));
 	}
 
 	void refresh() {
@@ -217,9 +226,9 @@ public class RemoteFrame extends IcyFrame {
 			zs += "0";
 		else if (zs.length() > dot_idx + 2)
 			zs = zs.substring(0, dot_idx + 2);
-		_lbl_x.setText(String.valueOf((double) ((int) (-x * 100)) / 100));
-		_lbl_y.setText(String.valueOf((double) ((int) (-y * 100)) / 100));
-		_lbl_z.setText(zs);
+		_lblX.setText(String.valueOf((double) ((int) (-x * 100)) / 100));
+		_lblY.setText(String.valueOf((double) ((int) (-y * 100)) / 100));
+		_lblZ.setText(zs);
 	}
 
 	public class PanelMoverXY extends JPanel implements MouseListener, MouseMotionListener {
@@ -231,16 +240,18 @@ public class RemoteFrame extends IcyFrame {
 
 		private static final int SIZE_PANEL_MOVER = 200;
 
-		/**
-		 * Movement Vector
-		 */
+		/** Movement Vector */
 		private Point2D vector;
-		MicroscopeCore _core = MicroscopeCore.getCore();
 		MoveThread thread;
 		private boolean started = false;
 		private boolean stopMoving = true;
 
+		Image originalBackground = null;
+
 		public PanelMoverXY() {
+			originalBackground = plugin.getImageResource(currentPath + "remote_backgroundXY.png");
+			if (originalBackground == null)
+				System.out.println("Background image for XY Axes not found.");
 			vector = new Point2D.Double(0, 0);
 			thread = new MoveThread();
 			setDoubleBuffered(true);
@@ -251,61 +262,103 @@ public class RemoteFrame extends IcyFrame {
 		}
 
 		@Override
-		public void paintComponent(Graphics g) {
+		public void paint(Graphics g) {
 			super.paintComponents(g);
 			int w = getWidth();
 			int h = getHeight();
 			Shape shape;
 			AffineTransform at;
 			Graphics2D g2 = (Graphics2D) g.create();
-			boolean useNormalColors;
-			Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			// -------------
-			// Draw the grid
-			// --------------
+			if (originalBackground != null) {
+				g2.drawImage(originalBackground, 0, 0, w, h, null);
+				int stickBallDiameter = w / 5;
+				Point2D centerBall = new Point2D.Double(w / 2d + vector.getX(), h / 2d + vector.getY());
+				g2.setColor(Color.darkGray);
+				double normVector = norm(vector);
+				if (vector.getX() != 0 && vector.getY() != 0) {
+					g2.setColor(Color.blue);
+					// ----------
+					// draw stick
+					// ----------
+					Graphics2D g3 = (Graphics2D) g2.create();
+					at = AffineTransform.getTranslateInstance(centerBall.getX(), centerBall.getY());
+					at.rotate(-vector.getX(), -vector.getY());
+					at.translate(0, -stickBallDiameter / 4);
+					g3.transform(at);
+					g3.setPaint(new GradientPaint(new Point2D.Double(0, 0), Color.BLACK, new Point2D.Double(0, stickBallDiameter / 4), Color.LIGHT_GRAY, true));
+					g3.fillRoundRect(0, 0, (int) normVector, stickBallDiameter / 2, stickBallDiameter / 2, stickBallDiameter / 2);
+					g3.dispose();
+				}
+				// ---------
+				// draw ball
+				// ---------
+				Paint defaultPaint = g2.getPaint();
+				Point2D centerGradient = new Point2D.Double(centerBall.getX(), centerBall.getY());
+				float radiusGradient = stickBallDiameter / 2;
+				Point2D focusSpotLightGradient;
+				if (Math.abs(vector.getX()) <= 1 && Math.abs(vector.getY()) <= 1) {
+					focusSpotLightGradient = new Point2D.Double(centerBall.getX(), centerBall.getY());
+				} else {
+					focusSpotLightGradient = new Point2D.Double(centerBall.getX() + vector.getX() * (radiusGradient - 5) / normVector, centerBall.getY() + vector.getY() / normVector
+							* (radiusGradient - 5));
+				}
+				float[] dist = { 0.1f, 0.3f, 1.0f };
+				Color[] colors = { new Color(0.9f, 0.9f, 0.9f), Color.LIGHT_GRAY, Color.DARK_GRAY };
+				RadialGradientPaint p = new RadialGradientPaint(centerGradient, radiusGradient, focusSpotLightGradient, dist, colors, CycleMethod.NO_CYCLE);
+				g2.setPaint(p);
+				g2.fillOval((int) centerBall.getX() - stickBallDiameter / 2, (int) centerBall.getY() - stickBallDiameter / 2, stickBallDiameter, stickBallDiameter);
+				g2.setPaint(defaultPaint);
+				g2.setColor(Color.BLACK);
+				g2.drawOval((int) centerBall.getX() - stickBallDiameter / 2, (int) centerBall.getY() - stickBallDiameter / 2, stickBallDiameter, stickBallDiameter);
+			} else {
+				boolean useNormalColors;
+				Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
 
-			// borders
-			useNormalColors = colorLookAndFeel.getRed() < 50 && colorLookAndFeel.getGreen() < 50 && colorLookAndFeel.getBlue() < 50;
+				// -------------
+				// Draw the grid
+				// --------------
+				// borders
+				useNormalColors = colorLookAndFeel.getRed() < 50 && colorLookAndFeel.getGreen() < 50 && colorLookAndFeel.getBlue() < 50;
+				if (useNormalColors)
+					g2.setColor(Color.black);
+				else
+					g2.setColor(colorLookAndFeel);
+				g2.drawRect(0, 0, w - 1, h - 1);
 
-			if (useNormalColors)
+				// X AXIS
+				if (useNormalColors)
+					g2.setColor(Color.red);
+				at = AffineTransform.getTranslateInstance(w / 2, h / 2);
+				shape = at.createTransformedShape(createArrow(w, 10));
+				g2.draw(shape);
+				g2.drawString("x", w - 10, h / 2 + 10);
+
+				// Y AXIS
+				if (useNormalColors)
+					g2.setColor(Color.green);
+				at = AffineTransform.getTranslateInstance(w / 2, h / 2);
+				at.rotate(-Math.PI / 2);
+				shape = at.createTransformedShape(createArrow(h, 10));
+				g2.draw(shape);
+				g2.drawString("y", w / 2 - 10 - 10, 10);
+
+				// if no vector, return if (vector.getX() == 0 && vector.getY()
+				// == 0) return;
+
+				// draw the arrow from vector if (useNormalColors)
 				g2.setColor(Color.black);
-			else
-				g2.setColor(colorLookAndFeel);
-			g2.drawRect(0, 0, w - 1, h - 1);
-
-			// X AXIS
-			if (useNormalColors)
-				g2.setColor(Color.red);
-			at = AffineTransform.getTranslateInstance(w / 2, h / 2);
-			shape = at.createTransformedShape(createArrow(w, 10));
-			g2.draw(shape);
-			g2.drawString("x", w - 10, h / 2 + 10);
-
-			// Y AXIS
-			if (useNormalColors)
-				g2.setColor(Color.green);
-			at = AffineTransform.getTranslateInstance(w / 2, h / 2);
-			at.rotate(-Math.PI / 2);
-			shape = at.createTransformedShape(createArrow(h, 10));
-			g2.draw(shape);
-			g2.drawString("y", w / 2 - 10 - 10, 10);
-
-			// if no vector, return
-			if (vector.getX() == 0 && vector.getY() == 0)
-				return;
-
-			// draw the arrow from vector
-			if (useNormalColors)
-				g2.setColor(Color.black);
-			double translateX = w / 2 + vector.getX() / 2;
-			double translateY = h / 2 + vector.getY() / 2;
-			at = AffineTransform.getTranslateInstance((int) translateX, (int) translateY);
-			at.rotate(vector.getX(), vector.getY());
-			double norm = norm(vector) / 4;
-			shape = at.createTransformedShape(createArrow((int) norm(vector), norm >= 1 ? (int) norm : 1));
-			g2.draw(shape);
-			g2.draw(g2.getStroke().createStrokedShape(shape));
+				double translateX = w / 2 + vector.getX() / 2;
+				double translateY = h / 2 + vector.getY() / 2;
+				at = AffineTransform.getTranslateInstance((int) translateX, (int) translateY);
+				at.rotate(vector.getX(), vector.getY());
+				double norm = norm(vector) / 4;
+				shape = at.createTransformedShape(createArrow((int) norm(vector), norm >= 1 ? (int) norm : 1));
+				g2.draw(shape);
+				g2.draw(g2.getStroke().createStrokedShape(shape));
+			}
+			g2.dispose();
 		}
 
 		private Path2D.Double createArrow(int length, int barb) {
@@ -327,14 +380,14 @@ public class RemoteFrame extends IcyFrame {
 			double normV = norm(vector);
 			double x = vector.getX() / normV;
 			double y = vector.getY() / normV;
-			double percent = norm(vector) * _slider_speed.getValue();
+			double percent = norm(vector) * _sliderSpeed.getValue();
 			if (stopMoving)
 				return;
 			MicroscopeCore mCore = MicroscopeCore.getCore();
 			if (mCore.getAvailablePixelSizeConfigs().size() == 0)
-				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.01 * percent * percent, cb_invert_x.isSelected(), cb_invert_y.isSelected());
+				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.01 * percent * percent, _cbInvertX.isSelected(), _cbInvertY.isSelected());
 			else
-				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.01 * percent * percent, cb_invert_x.isSelected(), cb_invert_y.isSelected());
+				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.01 * percent * percent, _cbInvertX.isSelected(), _cbInvertY.isSelected());
 		}
 
 		private double norm(Point2D vector) {
@@ -443,21 +496,23 @@ public class RemoteFrame extends IcyFrame {
 		 */
 		private static final long serialVersionUID = -5025582239086787935L;
 
+		// CONSTANTS
 		private static final int SIZE_PANEL_MOVERZ_W = 50;
 		private static final int SIZE_PANEL_MOVERZ_H = 200;
 
-		/**
-		 * Movement Vector
-		 */
-		private Point2D vector;
-		MicroscopeCore _core = MicroscopeCore.getCore();
-		MoveThread thread;
-		private boolean started = false;
-		private boolean stopMoving = true;
+		private static final double BARS_NUMBER = 200;
+
+		/** Movement Vector */
+		int oldY;
+
+		Image originalBackground = null;
+		Image originalBar = null;
+
+		private int startPos = 0;
 
 		public PanelMoverZ() {
-			vector = new Point2D.Double(0, 0);
-			thread = new MoveThread();
+			originalBackground = plugin.getImageResource(currentPath + "remote_backgroundZ.png");
+			originalBar = plugin.getImageResource(currentPath + "singleBarZ.png");
 			setDoubleBuffered(true);
 			setSize(new Dimension(SIZE_PANEL_MOVERZ_W, SIZE_PANEL_MOVERZ_H));
 			setPreferredSize(new Dimension(SIZE_PANEL_MOVERZ_W, SIZE_PANEL_MOVERZ_H));
@@ -473,50 +528,60 @@ public class RemoteFrame extends IcyFrame {
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			boolean useNormalColors;
-			Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
+			if (originalBackground != null && originalBar != null) {
+				// draw the background + joystick
+				g2.drawImage(originalBackground, 0, 0, w, h, null);
+				double ecartNormal = (double) h / 8;
+				double lastPos = h / 2d + startPos;
+				for (int i = 0; i < BARS_NUMBER; ++i) {
+					g2.drawImage(originalBar, 0, (int) lastPos, w, originalBar.getHeight(null) * w / originalBar.getWidth(null), null);
+					lastPos = lastPos + ecartNormal / (1d + 0.1 * i * i);
+					if (lastPos > h)
+						break;
+				}
+				lastPos = h / 2d + startPos;
+				for (int i = 0; i < BARS_NUMBER; ++i) {
+					g2.drawImage(originalBar, 0, (int) lastPos, w, originalBar.getHeight(null) * w / originalBar.getWidth(null), null);
+					lastPos = lastPos - ecartNormal / (1d + 0.1 * i * i);
+					if (lastPos < 0)
+						break;
+				}
+			} else {
+				// draw the old version of remote
+				boolean useNormalColors;
+				Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
+				useNormalColors = colorLookAndFeel.getRed() < 50 && colorLookAndFeel.getGreen() < 50 && colorLookAndFeel.getBlue() < 50;
 
-			useNormalColors = colorLookAndFeel.getRed() < 50 && colorLookAndFeel.getGreen() < 50 && colorLookAndFeel.getBlue() < 50;
+				// borders
+				if (useNormalColors)
+					g2.setColor(Color.black);
+				else
+					g2.setColor(colorLookAndFeel);
+				g2.drawRect(0, 0, w - 1, h - 1);
 
-			// borders
-			if (useNormalColors)
-				g2.setColor(Color.black);
-			else
-				g2.setColor(colorLookAndFeel);
-			g2.drawRect(0, 0, w - 1, h - 1);
-
-			// Draw the line
-			if (useNormalColors)
-				g2.setColor(Color.gray);
-			g2.drawRect(0, 0, w, h);
-
-			if (useNormalColors)
-				g2.setColor(Color.blue);
-			g2.drawLine(0, h / 2, w, h / 2);
-			g2.drawString("z", w / 2, 10);
-
-			if (vector.getX() == 0 && vector.getY() == 0)
-				return;
-			// draw the arrow
-			if (useNormalColors)
-				g2.setColor(LookAndFeelUtil.getForeground(this));
-
-			int translateY = h / 2;
-			Path2D shape = new Path2D.Double();
-			shape.moveTo(0, (int) (translateY + vector.getY()));
-			shape.lineTo(getWidth(), (int) (translateY + vector.getY()));
-			g2.draw(g2.getStroke().createStrokedShape(shape));
-		}
-
-		public void applyMovementZ() throws Exception {
-			double percent = norm(vector) * 0.1 * _slider_speed.getValue();
-			if (stopMoving)
-				return;
-			StageMover.moveZRelative(vector.getY() * 0.01 * percent * percent);
-		}
-
-		private double norm(Point2D vector) {
-			return Math.sqrt(vector.getX() * vector.getX() + vector.getY() * vector.getY());
+				// Draw the line in the middle
+				if (useNormalColors)
+					g2.setColor(Color.gray);
+				g2.drawRect(0, 0, w, h);
+				if (useNormalColors)
+					g2.setColor(Color.blue);
+				double ecartNormal = (double) h / 8;
+				double lastPos = h / 2d + startPos;
+				for (int i = 0; i < BARS_NUMBER; ++i) {
+					g2.drawLine(0, (int) lastPos, w, (int) lastPos);
+					lastPos = lastPos + ecartNormal / (1d + 0.1 * i * i);
+					if (lastPos > h)
+						break;
+				}
+				lastPos = h / 2d + startPos;
+				for (int i = 0; i < BARS_NUMBER; ++i) {
+					g2.drawLine(0, (int) lastPos, w, (int) lastPos);
+					lastPos = lastPos - ecartNormal / (1d + 0.1 * i * i);
+					if (lastPos < 0)
+						break;
+				}
+			}
+			g2.dispose();
 		}
 
 		@Override
@@ -526,7 +591,24 @@ public class RemoteFrame extends IcyFrame {
 				y = 0;
 			if (y > getHeight())
 				y = getHeight();
-			vector.setLocation(e.getX() - (getWidth() / 2), y - (getHeight() / 2));
+			int movY = e.getY() - oldY;
+			oldY = e.getY();
+			double ecartNormal = getHeight() / 8d / 2;
+			if (movY > 0) {
+				++startPos;
+				if (startPos > ecartNormal)
+					startPos = (int) -ecartNormal;
+			} else {
+				--startPos;
+				if (startPos < -ecartNormal)
+					startPos = (int) ecartNormal;
+			}
+			int percent = _sliderSpeed.getValue();
+			try {
+				StageMover.moveZRelative(movY * 0.01 * percent * percent);
+			} catch (Exception e1) {
+				System.out.println("Error with Z movement");
+			}
 			repaint();
 		}
 
@@ -548,55 +630,15 @@ public class RemoteFrame extends IcyFrame {
 
 		@Override
 		public void mousePressed(MouseEvent e) {
-			vector.setLocation(e.getX() - (getWidth() / 2), e.getY() - (getHeight() / 2));
-			if (started)
-				return;
-			started = true;
-			stopMoving = false;
-			ThreadUtil.bgRun(thread);
+			oldY = e.getY();
+			setCursor(new Cursor(Cursor.N_RESIZE_CURSOR | Cursor.S_RESIZE_CURSOR));
 			repaint();
 		}
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
-			vector.setLocation(0, 0);
-			if (!started)
-				return;
-			thread.setStop(true);
-			started = false;
-			stopMoving = true;
+			setCursor(Cursor.getDefaultCursor());
 			repaint();
-		}
-
-		public class MoveThread implements Runnable {
-			private boolean stop;
-
-			public MoveThread() {
-				stop = false;
-			}
-
-			@Override
-			public void run() {
-				stop = false;
-				while (!stop) {
-					try {
-						applyMovementZ();
-						repaint();
-					} catch (Exception e) {
-						break;
-					}
-					try {
-						Thread.sleep(50);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-				setStop(false);
-			}
-
-			public synchronized void setStop(boolean stop) {
-				this.stop = stop;
-			}
 		}
 	}
 }
