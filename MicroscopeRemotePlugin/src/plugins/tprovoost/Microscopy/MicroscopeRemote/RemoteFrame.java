@@ -4,16 +4,21 @@ import icy.gui.component.IcyLogo;
 import icy.gui.frame.IcyFrame;
 import icy.gui.util.GuiUtil;
 import icy.gui.util.LookAndFeelUtil;
+import icy.network.NetworkUtil;
 import icy.plugin.abstract_.Plugin;
 import icy.system.thread.ThreadUtil;
 import icy.util.StringUtil;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.MultipleGradientPaint.CycleMethod;
 import java.awt.Paint;
@@ -30,18 +35,22 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.util.prefs.Preferences;
 
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JCheckBox;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JSlider;
+import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import plugins.tprovoost.Microscopy.MicroManagerForIcy.MicroscopeCore;
 import plugins.tprovoost.Microscopy.MicroManagerForIcy.Tools.StageListener;
 import plugins.tprovoost.Microscopy.MicroManagerForIcy.Tools.StageMover;
+import plugins.tprovoost.Microscopy.MicroscopeRemote.gui.InverterCheckBox;
+import plugins.tprovoost.Microscopy.MicroscopeRemote.gui.MemoryButton;
+import plugins.tprovoost.Microscopy.MicroscopeRemote.gui.RemoteSlider;
 
 /**
  * This class is the core of the Remote Plugin. Three different threads are
@@ -61,12 +70,29 @@ public class RemoteFrame extends IcyFrame {
 	// -------
 	Plugin plugin;
 	private IcyLogo _logo_remote;
-	private JSlider _sliderSpeed;
+	private RemoteSlider _sliderSpeed;
 	private JLabel _lblX;
 	private JLabel _lblY;
 	private JLabel _lblZ;
-	private JCheckBox _cbInvertX;
-	private JCheckBox _cbInvertY;
+	private InverterCheckBox _cbInvertX;
+	private InverterCheckBox _cbInvertY;
+	private InverterCheckBox _cbInvertZ;
+
+	// --------
+	// IMAGES
+	// --------
+	public Color transparentColor = new Color(255, 255, 255, 0);
+	Image imgRemoteBg = null;
+	Image imgZBg = null;
+	Image imgZBar = null;
+	Image imgXYBg = null;
+	Image imgSliderKnob = null;
+	Image imgMemBtnOn = null;
+	Image imgMemBtnOff = null;
+	Image imgInvertSwitchOn = null;
+	Image imgInvertSwitchOff = null;
+	Image imgInvertLightOn = null;
+	Image imgInvertLightOff = null;
 
 	// CONSTANTS
 	private static String currentPath = "plugins/tprovoost/Microscopy/MicroscopeRemote/images/";
@@ -79,33 +105,68 @@ public class RemoteFrame extends IcyFrame {
 	private static final String SPEED = "speed";
 	private static final String INVERTX = "invertx";
 	private static final String INVERTY = "inverty";
+	protected static final String INVERTZ = "invertz";
 
 	public RemoteFrame(MicroscopeRemotePlugin plugin) {
-		super("Remote", false, true, true, true);
+		super("Remote", true, true, true, true);
 		this.plugin = plugin;
-		JPanel panelAll = new JPanel();
+
+		// LOAD ALL IMAGES
+		imgRemoteBg = plugin.getImageResource(currentPath + "RemoteFull_2.png");
+		imgXYBg = plugin.getImageResource(currentPath + "remote_backgroundXY.png");
+		imgZBg = plugin.getImageResource(currentPath + "remote_backgroundZ.png");
+		imgZBar = plugin.getImageResource(currentPath + "singleBarZ.png");
+		imgMemBtnOn = plugin.getImageResource(currentPath + "memoryOn.png");
+		imgMemBtnOff = plugin.getImageResource(currentPath + "memoryOff.png");
+		imgInvertSwitchOn = plugin.getImageResource(currentPath + "btn_switchOn.png");
+		imgInvertSwitchOff = plugin.getImageResource(currentPath + "btn_switchOff.png");
+		imgInvertLightOn = plugin.getImageResource(currentPath + "btnRound.png");
+		imgInvertLightOff = plugin.getImageResource(currentPath + "btnRound_off.png");
+
+		JPanel panelAll = new JPanel() {
+
+			/** */
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void paintComponent(Graphics g) {
+				if (imgRemoteBg == null) {
+					super.paintComponent(g);
+				} else {
+					Graphics2D g2 = (Graphics2D) g;
+					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+					g2.setColor(transparentColor);
+					g2.fillRect(0, 0, getWidth(), getHeight());
+					g2.drawImage(imgRemoteBg, 0, 0, getWidth(), getHeight(), null);
+				}
+			}
+		};
 		panelAll.setLayout(new BoxLayout(panelAll, BoxLayout.Y_AXIS));
+		panelAll.setBackground(Color.BLACK);
 
 		_logo_remote = new IcyLogo("Remote");
 		_logo_remote.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-		panelAll.add(_logo_remote);
 
 		// -------------
 		// MOUSE MOVER
 		// ------------
-		JPanel panel_mover = GuiUtil.generatePanel("Mouse mover");
-		panel_mover.setLayout(new BoxLayout(panel_mover, BoxLayout.X_AXIS));
-		panel_mover.add(new PanelMoverXY());
-		panel_mover.add(Box.createRigidArea(new Dimension(20, 10)));
-		panel_mover.add(new PanelMoverZ());
-		panelAll.add(panel_mover);
+		JPanel panelMover = GuiUtil.generatePanel();
+		panelMover.setLayout(new BoxLayout(panelMover, BoxLayout.X_AXIS));
+		panelMover.add(new PanelMoverXY());
+		panelMover.add(Box.createRigidArea(new Dimension(20, 10)));
+		panelMover.add(new PanelMoverZ());
+		panelMover.setOpaque(false);
+		panelMover.setBackground(transparentColor);
+		panelAll.add(panelMover);
 
 		// ---------
 		// SPEED
 		// ---------
-		JPanel panel_speed = GuiUtil.generatePanel("Speed");
+		JPanel panel_speed = GuiUtil.generatePanel();
 		panel_speed.setLayout(new BoxLayout(panel_speed, BoxLayout.X_AXIS));
-		_sliderSpeed = new JSlider(1, 10, 1);
+		panel_speed.setOpaque(false);
+		_sliderSpeed = new RemoteSlider(1, 10, 1);
 		final JLabel lbl_value = new JLabel("" + _sliderSpeed.getValue());
 
 		_sliderSpeed.addChangeListener(new ChangeListener() {
@@ -116,32 +177,16 @@ public class RemoteFrame extends IcyFrame {
 			}
 		});
 		panel_speed.add(_sliderSpeed);
-		panel_speed.add(Box.createRigidArea(new Dimension(20, 10)));
+		panel_speed.add(Box.createHorizontalGlue());
 		panel_speed.add(lbl_value);
+		panel_speed.add(Box.createHorizontalGlue());
 		panelAll.add(panel_speed);
-
-		// -----------
-		// COORDINATES
-		// ----------
-		_lblX = new JLabel("0.0000 µm");
-		_lblY = new JLabel("0.0000 µm");
-		_lblZ = new JLabel("0.0000 µm");
-		JPanel panel_coords = GuiUtil.generatePanel("Current Position");
-		panel_coords.setLayout(new BoxLayout(panel_coords, BoxLayout.X_AXIS));
-		panel_coords.add(Box.createHorizontalGlue());
-		panel_coords.add(new JLabel("x: "));
-		panel_coords.add(_lblX);
-		panel_coords.add(new JLabel(" y: "));
-		panel_coords.add(_lblY);
-		panel_coords.add(new JLabel(" z: "));
-		panel_coords.add(_lblZ);
-		panel_coords.add(Box.createHorizontalGlue());
-		panelAll.add(panel_coords);
 
 		// -------------------
 		// INVERT CHEBKBOXES
 		// -------------------
-		_cbInvertX = new JCheckBox("Invert X-Axis");
+		_cbInvertX = new InverterCheckBox("Invert X-Axis");
+		_cbInvertX.setImages(imgInvertSwitchOn, imgInvertSwitchOff, imgInvertLightOn, imgInvertLightOff);
 		_cbInvertX.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -149,12 +194,9 @@ public class RemoteFrame extends IcyFrame {
 				;
 			}
 		});
-		JPanel panel_invertX = new JPanel();
-		panel_invertX.add(Box.createHorizontalGlue());
-		panel_invertX.add(_cbInvertX);
-		panel_invertX.add(Box.createHorizontalGlue());
 
-		_cbInvertY = new JCheckBox("Invert Y-Axis");
+		_cbInvertY = new InverterCheckBox("Invert Y-Axis");
+		_cbInvertY.setImages(imgInvertSwitchOn, imgInvertSwitchOff, imgInvertLightOn, imgInvertLightOff);
 		_cbInvertY.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -162,20 +204,100 @@ public class RemoteFrame extends IcyFrame {
 			}
 		});
 
-		JPanel panel_invertY = new JPanel();
-		panel_invertY.add(Box.createHorizontalGlue());
-		panel_invertY.add(_cbInvertY);
-		panel_invertY.add(Box.createHorizontalGlue());
+		_cbInvertZ = new InverterCheckBox("Invert Z-Axis");
+		_cbInvertZ.setImages(imgInvertSwitchOn, imgInvertSwitchOff, imgInvertLightOn, imgInvertLightOff);
+		_cbInvertZ.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				_prefs.putBoolean(INVERTZ, _cbInvertZ.isSelected());
+			}
+		});
 
-		JPanel panelInvert = GuiUtil.generatePanel("Axis tranformation");
-		panelInvert.setLayout(new BoxLayout(panelInvert, BoxLayout.Y_AXIS));
-		panelInvert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-		panelInvert.add(panel_invertX);
-		panelInvert.add(panel_invertY);
+		JPanel panelInvert = GuiUtil.generatePanel();
+		panelInvert.setOpaque(false);
+		panelInvert.setLayout(new GridLayout(3, 1));
+		panelInvert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+		panelInvert.add(_cbInvertX);
+		panelInvert.add(_cbInvertY);
+		panelInvert.add(_cbInvertZ);
+
+		// MEMORY BUTTONS
+		MemoryButton btnM1 = new MemoryButton("M1");
+		btnM1.setImages(imgMemBtnOn, imgMemBtnOff);
+		MemoryButton btnM2 = new MemoryButton("M2");
+		btnM2.setImages(imgMemBtnOn, imgMemBtnOff);
+		MemoryButton btnM3 = new MemoryButton("M3");
+		btnM3.setImages(imgMemBtnOn, imgMemBtnOff);
+		MemoryButton btnM4 = new MemoryButton("M4");
+		btnM4.setImages(imgMemBtnOn, imgMemBtnOff);
+		JButton btnHelp = new JButton("?") {
+			/** */
+			private static final long serialVersionUID = 1L;
+						
+			@Override
+			protected void paintComponent(Graphics g) {
+				if (imgMemBtnOn == null || imgMemBtnOff == null) {
+					super.paintComponent(g);
+				} else {
+					int w = getWidth();
+					int h = getHeight();
+					Graphics2D g2 = (Graphics2D) g;
+					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+					
+					if (isSelected())
+						g2.drawImage(imgMemBtnOn, 0, 0, w, h, null);
+					else
+						g2.drawImage(imgMemBtnOff, 0, 0, w, h, null);
+					g2.setFont(new Font("Arial",Font.BOLD,16));
+					FontMetrics fm = g2.getFontMetrics();
+					g2.setColor(Color.LIGHT_GRAY);
+					g2.drawString("?", getWidth() / 2 - fm.charWidth('?') / 2, getHeight() / 2 + fm.getHeight() / 3);
+				}
+			}
+		};
+		btnHelp.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent actionevent) {
+				NetworkUtil.openURL("http://icy.bioimageanalysis.org/index.php?display=detailPlugin&pluginId=124#documentation");
+			}
+		});
+
+		JPanel panelMemoryButtons = new JPanel(new GridLayout(1, 4));
+		panelMemoryButtons.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+		panelMemoryButtons.setOpaque(false);
+		panelMemoryButtons.setPreferredSize(new Dimension(60, 40));
+		panelMemoryButtons.add(btnM1);
+		panelMemoryButtons.add(btnM2);
+		panelMemoryButtons.add(btnM3);
+		panelMemoryButtons.add(btnM4);
+		panelMemoryButtons.add(btnHelp);
+
+		panelAll.add(panelMemoryButtons);
 		panelAll.add(panelInvert);
 
-		add(panelAll);
+		// -----------
+		// COORDINATES
+		// ----------
+		_lblX = new JLabel("X: 0.0000 µm");
+		_lblX.setHorizontalAlignment(SwingConstants.CENTER);
+		_lblY = new JLabel("Y: 0.0000 µm");
+		_lblY.setHorizontalAlignment(SwingConstants.CENTER);
+		_lblZ = new JLabel("Z: 0.0000 µm");
+		_lblZ.setHorizontalAlignment(SwingConstants.CENTER);
+		// JPanel panel_coords = GuiUtil.generatePanel("Current Position");
+		JPanel panelCoords = new JPanel(new GridLayout(3, 1));
+		panelCoords.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+		panelCoords.setOpaque(false);
+		panelCoords.setBackground(transparentColor);
+		panelCoords.add(_lblX);
+		panelCoords.add(_lblY);
+		panelCoords.add(_lblZ);
+		panelAll.add(panelCoords);
 
+		// set the frame
+		setLayout(new BorderLayout());
+		add(panelAll, BorderLayout.CENTER);
+		add(_logo_remote, BorderLayout.NORTH);
 		setVisible(true);
 		validate();
 		addToMainDesktopPane();
@@ -188,9 +310,9 @@ public class RemoteFrame extends IcyFrame {
 
 			@Override
 			public void stageMoved(final double x, final double y, final double z) {
-				_lblX.setText(StringUtil.toString(x, 2) + " µm");
-				_lblY.setText(StringUtil.toString(y, 2) + " µm");
-				_lblZ.setText(StringUtil.toString(z, 2) + " µm");
+				_lblX.setText("X: " + StringUtil.toString(x, 2) + " µm");
+				_lblY.setText("Y: " + StringUtil.toString(y, 2) + " µm");
+				_lblZ.setText("Z: " + StringUtil.toString(z, 2) + " µm");
 			}
 		});
 	}
@@ -204,6 +326,7 @@ public class RemoteFrame extends IcyFrame {
 		_sliderSpeed.setValue(_prefs.getInt(SPEED, 1));
 		_cbInvertX.setSelected(_prefs.getBoolean(INVERTX, false));
 		_cbInvertY.setSelected(_prefs.getBoolean(INVERTY, false));
+		_cbInvertZ.setSelected(_prefs.getBoolean(INVERTZ, false));
 	}
 
 	void refresh() {
@@ -217,18 +340,6 @@ public class RemoteFrame extends IcyFrame {
 
 	void setEnable(boolean b) {
 		getContentPane().setEnabled(b);
-	}
-
-	public void updateCoordinates(double x, double y, double z) {
-		String zs = String.valueOf(z);
-		int dot_idx = zs.indexOf(".");
-		if (zs.length() <= dot_idx + 2)
-			zs += "0";
-		else if (zs.length() > dot_idx + 2)
-			zs = zs.substring(0, dot_idx + 2);
-		_lblX.setText(String.valueOf((double) ((int) (-x * 100)) / 100));
-		_lblY.setText(String.valueOf((double) ((int) (-y * 100)) / 100));
-		_lblZ.setText(zs);
 	}
 
 	public class PanelMoverXY extends JPanel implements MouseListener, MouseMotionListener {
@@ -246,12 +357,9 @@ public class RemoteFrame extends IcyFrame {
 		private boolean started = false;
 		private boolean stopMoving = true;
 
-		Image originalBackground = null;
-
 		public PanelMoverXY() {
-			originalBackground = plugin.getImageResource(currentPath + "remote_backgroundXY.png");
-			if (originalBackground == null)
-				System.out.println("Background image for XY Axes not found.");
+			if (imgXYBg == null)
+				System.out.println("\"remote_backgroundXY.png\" not found.");
 			vector = new Point2D.Double(0, 0);
 			thread = new MoveThread();
 			setDoubleBuffered(true);
@@ -262,8 +370,7 @@ public class RemoteFrame extends IcyFrame {
 		}
 
 		@Override
-		public void paint(Graphics g) {
-			super.paintComponents(g);
+		public void paintComponent(Graphics g) {
 			int w = getWidth();
 			int h = getHeight();
 			Shape shape;
@@ -271,13 +378,15 @@ public class RemoteFrame extends IcyFrame {
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			if (originalBackground != null) {
-				g2.drawImage(originalBackground, 0, 0, w, h, null);
+			if (imgXYBg != null) {
+				g2.setColor(transparentColor);
+				g2.fillRect(0, 0, w, h);
+				g2.drawImage(imgXYBg, 0, 0, w, h, null);
 				int stickBallDiameter = w / 5;
 				Point2D centerBall = new Point2D.Double(w / 2d + vector.getX(), h / 2d + vector.getY());
 				g2.setColor(Color.darkGray);
 				double normVector = norm(vector);
-				if (vector.getX() != 0 && vector.getY() != 0) {
+				if (vector.getX() != 0 || vector.getY() != 0) {
 					g2.setColor(Color.blue);
 					// ----------
 					// draw stick
@@ -313,6 +422,7 @@ public class RemoteFrame extends IcyFrame {
 				g2.setColor(Color.BLACK);
 				g2.drawOval((int) centerBall.getX() - stickBallDiameter / 2, (int) centerBall.getY() - stickBallDiameter / 2, stickBallDiameter, stickBallDiameter);
 			} else {
+				super.paintComponent(g);
 				boolean useNormalColors;
 				Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
 
@@ -505,14 +615,9 @@ public class RemoteFrame extends IcyFrame {
 		/** Movement Vector */
 		int oldY;
 
-		Image originalBackground = null;
-		Image originalBar = null;
-
 		private int startPos = 0;
 
 		public PanelMoverZ() {
-			originalBackground = plugin.getImageResource(currentPath + "remote_backgroundZ.png");
-			originalBar = plugin.getImageResource(currentPath + "singleBarZ.png");
 			setDoubleBuffered(true);
 			setSize(new Dimension(SIZE_PANEL_MOVERZ_W, SIZE_PANEL_MOVERZ_H));
 			setPreferredSize(new Dimension(SIZE_PANEL_MOVERZ_W, SIZE_PANEL_MOVERZ_H));
@@ -522,26 +627,26 @@ public class RemoteFrame extends IcyFrame {
 
 		@Override
 		public void paintComponent(Graphics g) {
-			super.paintComponents(g);
+			super.paintComponent(g);
 			int w = getWidth();
 			int h = getHeight();
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-			if (originalBackground != null && originalBar != null) {
+			if (imgZBg != null && imgZBar != null) {
 				// draw the background + joystick
-				g2.drawImage(originalBackground, 0, 0, w, h, null);
+				g2.drawImage(imgZBg, 0, 0, w, h, null);
 				double ecartNormal = (double) h / 8;
 				double lastPos = h / 2d + startPos;
 				for (int i = 0; i < BARS_NUMBER; ++i) {
-					g2.drawImage(originalBar, 0, (int) lastPos, w, originalBar.getHeight(null) * w / originalBar.getWidth(null), null);
+					g2.drawImage(imgZBar, 0, (int) lastPos, w, imgZBar.getHeight(null) * w / imgZBar.getWidth(null), null);
 					lastPos = lastPos + ecartNormal / (1d + 0.1 * i * i);
 					if (lastPos > h)
 						break;
 				}
 				lastPos = h / 2d + startPos;
 				for (int i = 0; i < BARS_NUMBER; ++i) {
-					g2.drawImage(originalBar, 0, (int) lastPos, w, originalBar.getHeight(null) * w / originalBar.getWidth(null), null);
+					g2.drawImage(imgZBar, 0, (int) lastPos, w, imgZBar.getHeight(null) * w / imgZBar.getWidth(null), null);
 					lastPos = lastPos - ecartNormal / (1d + 0.1 * i * i);
 					if (lastPos < 0)
 						break;
@@ -641,4 +746,5 @@ public class RemoteFrame extends IcyFrame {
 			repaint();
 		}
 	}
+
 }
