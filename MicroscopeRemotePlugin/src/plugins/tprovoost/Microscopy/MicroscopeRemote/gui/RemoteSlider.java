@@ -35,7 +35,7 @@ public class RemoteSlider extends JSlider {
 			g2.setColor(Color.LIGHT_GRAY);
 			g2.fillRect(((getValue() - 1) * width / getMaximum()), height / 2 - heightKnob / 2, heightKnob * 2, heightKnob);
 		} else {
-
+			g2.drawImage(sliderKnob, ((getValue() - 1) * width / getMaximum()), height / 2 - sliderKnob.getHeight(null) / 2, null);
 		}
 	}
 }

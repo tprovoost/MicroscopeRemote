@@ -122,6 +122,7 @@ public class RemoteFrame extends IcyFrame {
 		imgInvertSwitchOff = plugin.getImageResource(currentPath + "btn_switchOff.png");
 		imgInvertLightOn = plugin.getImageResource(currentPath + "btnRound.png");
 		imgInvertLightOff = plugin.getImageResource(currentPath + "btnRound_off.png");
+		imgSliderKnob = plugin.getImageResource(currentPath + "knob.png");
 
 		JPanel panelAll = new JPanel() {
 
@@ -167,6 +168,7 @@ public class RemoteFrame extends IcyFrame {
 		panel_speed.setLayout(new BoxLayout(panel_speed, BoxLayout.X_AXIS));
 		panel_speed.setOpaque(false);
 		_sliderSpeed = new RemoteSlider(1, 10, 1);
+		_sliderSpeed.setSliderKnob(imgSliderKnob);
 		final JLabel lbl_value = new JLabel("" + _sliderSpeed.getValue());
 
 		_sliderSpeed.addChangeListener(new ChangeListener() {
