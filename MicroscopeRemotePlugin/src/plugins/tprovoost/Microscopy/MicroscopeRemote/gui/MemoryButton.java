@@ -9,10 +9,10 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
 
 import javax.swing.JButton;
 import javax.vecmath.Point3d;
@@ -31,8 +31,8 @@ public class MemoryButton extends JButton implements MouseListener {
 	long datePressed = 0;
 
 	// IMAGES FOR DRAWING
-	Image imgMemBtnOn = null;
-	Image imgMemBtnOff = null;
+	BufferedImage imgMemBtnOn = null;
+	BufferedImage imgMemBtnOff = null;
 
 	/** This variable contains the value of the 3D point in this memory button. */
 	Point3d memoryButtonPoint;
@@ -41,10 +41,11 @@ public class MemoryButton extends JButton implements MouseListener {
 
 	public MemoryButton(String string) {
 		super(string);
+		setOpaque(true);
 		addMouseListener(this);
 	}
 
-	public void setImages(Image imgMemBtnOn, Image imgMemBtnOff) {
+	public void setImages(BufferedImage imgMemBtnOn, BufferedImage imgMemBtnOff) {
 		this.imgMemBtnOn = imgMemBtnOn;
 		this.imgMemBtnOff = imgMemBtnOff;
 	}
@@ -108,8 +109,8 @@ public class MemoryButton extends JButton implements MouseListener {
 	}
 
 	@Override
-	public void paintComponent(Graphics g) {
-
+	public void paint(Graphics g) {
+		super.paint(g);
 		boolean selected = isSelected();
 		int width = getWidth();
 		int height = getHeight();

@@ -4,6 +4,7 @@ import icy.gui.component.IcyLogo;
 import icy.gui.frame.IcyFrame;
 import icy.gui.util.GuiUtil;
 import icy.gui.util.LookAndFeelUtil;
+import icy.image.ImageUtil;
 import icy.network.NetworkUtil;
 import icy.plugin.abstract_.Plugin;
 import icy.system.thread.ThreadUtil;
@@ -19,7 +20,6 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
-import java.awt.Image;
 import java.awt.MultipleGradientPaint.CycleMethod;
 import java.awt.Paint;
 import java.awt.RadialGradientPaint;
@@ -33,6 +33,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
 import java.util.prefs.Preferences;
 
 import javax.swing.BorderFactory;
@@ -82,17 +83,17 @@ public class RemoteFrame extends IcyFrame {
 	// IMAGES
 	// --------
 	public Color transparentColor = new Color(255, 255, 255, 0);
-	Image imgRemoteBg = null;
-	Image imgZBg = null;
-	Image imgZBar = null;
-	Image imgXYBg = null;
-	Image imgSliderKnob = null;
-	Image imgMemBtnOn = null;
-	Image imgMemBtnOff = null;
-	Image imgInvertSwitchOn = null;
-	Image imgInvertSwitchOff = null;
-	Image imgInvertLightOn = null;
-	Image imgInvertLightOff = null;
+	BufferedImage imgRemoteBg = null;
+	BufferedImage imgZBg = null;
+	BufferedImage imgZBar = null;
+	BufferedImage imgXYBg = null;
+	BufferedImage imgSliderKnob = null;
+	BufferedImage imgMemBtnOn = null;
+	BufferedImage imgMemBtnOff = null;
+	BufferedImage imgInvertSwitchOn = null;
+	BufferedImage imgInvertSwitchOff = null;
+	BufferedImage imgInvertLightOn = null;
+	BufferedImage imgInvertLightOff = null;
 
 	// CONSTANTS
 	private static String currentPath = "plugins/tprovoost/Microscopy/MicroscopeRemote/images/";
@@ -103,26 +104,23 @@ public class RemoteFrame extends IcyFrame {
 	private Preferences _prefs;
 	private static final String REMOTE = "prefs_remote";
 	private static final String SPEED = "speed";
-	private static final String INVERTX = "invertx";
-	private static final String INVERTY = "inverty";
-	protected static final String INVERTZ = "invertz";
 
 	public RemoteFrame(MicroscopeRemotePlugin plugin) {
 		super("Remote", true, true, true, true);
 		this.plugin = plugin;
 
 		// LOAD ALL IMAGES
-		imgRemoteBg = plugin.getImageResource(currentPath + "RemoteFull_2.png");
-		imgXYBg = plugin.getImageResource(currentPath + "remote_backgroundXY.png");
-		imgZBg = plugin.getImageResource(currentPath + "remote_backgroundZ.png");
-		imgZBar = plugin.getImageResource(currentPath + "singleBarZ.png");
-		imgMemBtnOn = plugin.getImageResource(currentPath + "memoryOn.png");
-		imgMemBtnOff = plugin.getImageResource(currentPath + "memoryOff.png");
-		imgInvertSwitchOn = plugin.getImageResource(currentPath + "btn_switchOn.png");
-		imgInvertSwitchOff = plugin.getImageResource(currentPath + "btn_switchOff.png");
-		imgInvertLightOn = plugin.getImageResource(currentPath + "btnRound.png");
-		imgInvertLightOff = plugin.getImageResource(currentPath + "btnRound_off.png");
-		imgSliderKnob = plugin.getImageResource(currentPath + "knob.png");
+		imgRemoteBg = (BufferedImage) plugin.getImageResource(currentPath + "RemoteFull_2.png");
+		imgXYBg = (BufferedImage) plugin.getImageResource(currentPath + "remote_backgroundXY.png");
+		imgZBg = (BufferedImage) plugin.getImageResource(currentPath + "remote_backgroundZ.png");
+		imgZBar = (BufferedImage) plugin.getImageResource(currentPath + "singleBarZ.png");
+		imgMemBtnOn = (BufferedImage) plugin.getImageResource(currentPath + "memoryOn.png");
+		imgMemBtnOff = (BufferedImage) plugin.getImageResource(currentPath + "memoryOff.png");
+		imgInvertSwitchOn = (BufferedImage) plugin.getImageResource(currentPath + "btn_switchOn.png");
+		imgInvertSwitchOff = (BufferedImage) plugin.getImageResource(currentPath + "btn_switchOff.png");
+		imgInvertLightOn = (BufferedImage) plugin.getImageResource(currentPath + "btnRound.png");
+		imgInvertLightOff = (BufferedImage) plugin.getImageResource(currentPath + "btnRound_off.png");
+		imgSliderKnob = (BufferedImage) plugin.getImageResource(currentPath + "knob.png");
 
 		JPanel panelAll = new JPanel() {
 
@@ -130,16 +128,17 @@ public class RemoteFrame extends IcyFrame {
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public void paintComponent(Graphics g) {
+			protected void paintComponent(Graphics g) {
 				if (imgRemoteBg == null) {
 					super.paintComponent(g);
 				} else {
-					Graphics2D g2 = (Graphics2D) g;
+					Graphics2D g2 = (Graphics2D) g.create();
 					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
 					g2.setColor(transparentColor);
 					g2.fillRect(0, 0, getWidth(), getHeight());
-					g2.drawImage(imgRemoteBg, 0, 0, getWidth(), getHeight(), null);
+					g2.drawImage(ImageUtil.scaleImage(imgRemoteBg,getWidth(), getHeight()), null, 0,0);
+					g2.dispose();
 				}
 			}
 		};
@@ -192,8 +191,7 @@ public class RemoteFrame extends IcyFrame {
 		_cbInvertX.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				_prefs.putBoolean(INVERTX, _cbInvertX.isSelected());
-				;
+				StageMover.setInvertX(_cbInvertX.isSelected());
 			}
 		});
 
@@ -202,7 +200,7 @@ public class RemoteFrame extends IcyFrame {
 		_cbInvertY.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				_prefs.putBoolean(INVERTY, _cbInvertY.isSelected());
+				StageMover.setInvertY(_cbInvertY.isSelected());
 			}
 		});
 
@@ -211,7 +209,7 @@ public class RemoteFrame extends IcyFrame {
 		_cbInvertZ.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				_prefs.putBoolean(INVERTZ, _cbInvertZ.isSelected());
+				StageMover.setInvertZ(_cbInvertZ.isSelected());
 			}
 		});
 
@@ -237,13 +235,13 @@ public class RemoteFrame extends IcyFrame {
 			private static final long serialVersionUID = 1L;
 						
 			@Override
-			protected void paintComponent(Graphics g) {
+			public void paint(Graphics g) {
 				if (imgMemBtnOn == null || imgMemBtnOff == null) {
-					super.paintComponent(g);
+					super.paint(g);
 				} else {
 					int w = getWidth();
 					int h = getHeight();
-					Graphics2D g2 = (Graphics2D) g;
+					Graphics2D g2 = (Graphics2D) g.create();
 					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 					
 					if (isSelected())
@@ -254,6 +252,7 @@ public class RemoteFrame extends IcyFrame {
 					FontMetrics fm = g2.getFontMetrics();
 					g2.setColor(Color.LIGHT_GRAY);
 					g2.drawString("?", getWidth() / 2 - fm.charWidth('?') / 2, getHeight() / 2 + fm.getHeight() / 3);
+					g2.dispose();
 				}
 			}
 		};
@@ -326,9 +325,9 @@ public class RemoteFrame extends IcyFrame {
 		Preferences root = Preferences.userNodeForPackage(getClass());
 		_prefs = root.node(root.absolutePath() + "/" + REMOTE);
 		_sliderSpeed.setValue(_prefs.getInt(SPEED, 1));
-		_cbInvertX.setSelected(_prefs.getBoolean(INVERTX, false));
-		_cbInvertY.setSelected(_prefs.getBoolean(INVERTY, false));
-		_cbInvertZ.setSelected(_prefs.getBoolean(INVERTZ, false));
+		_cbInvertX.setSelected(StageMover.isInvertX());
+		_cbInvertY.setSelected(StageMover.isInvertY());
+		_cbInvertZ.setSelected(StageMover.isInvertZ());
 	}
 
 	void refresh() {
@@ -372,7 +371,7 @@ public class RemoteFrame extends IcyFrame {
 		}
 
 		@Override
-		public void paintComponent(Graphics g) {
+		public void paint(Graphics g) {
 			int w = getWidth();
 			int h = getHeight();
 			Shape shape;
@@ -424,7 +423,7 @@ public class RemoteFrame extends IcyFrame {
 				g2.setColor(Color.BLACK);
 				g2.drawOval((int) centerBall.getX() - stickBallDiameter / 2, (int) centerBall.getY() - stickBallDiameter / 2, stickBallDiameter, stickBallDiameter);
 			} else {
-				super.paintComponent(g);
+				super.paint(g);
 				boolean useNormalColors;
 				Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
 
@@ -497,9 +496,9 @@ public class RemoteFrame extends IcyFrame {
 				return;
 			MicroscopeCore mCore = MicroscopeCore.getCore();
 			if (mCore.getAvailablePixelSizeConfigs().size() == 0)
-				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.01 * percent * percent, _cbInvertX.isSelected(), _cbInvertY.isSelected());
+				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.01 * percent * percent);
 			else
-				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.01 * percent * percent, _cbInvertX.isSelected(), _cbInvertY.isSelected());
+				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.01 * percent * percent);
 		}
 
 		private double norm(Point2D vector) {
@@ -626,10 +625,9 @@ public class RemoteFrame extends IcyFrame {
 			addMouseListener(this);
 			addMouseMotionListener(this);
 		}
-
+		
 		@Override
-		public void paintComponent(Graphics g) {
-			super.paintComponent(g);
+		public void paint(Graphics g) {
 			int w = getWidth();
 			int h = getHeight();
 			Graphics2D g2 = (Graphics2D) g.create();
@@ -654,6 +652,7 @@ public class RemoteFrame extends IcyFrame {
 						break;
 				}
 			} else {
+				super.paint(g);
 				// draw the old version of remote
 				boolean useNormalColors;
 				Color colorLookAndFeel = LookAndFeelUtil.getForeground(this);
