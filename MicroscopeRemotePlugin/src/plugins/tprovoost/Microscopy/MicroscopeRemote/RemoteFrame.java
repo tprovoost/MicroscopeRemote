@@ -106,7 +106,7 @@ public class RemoteFrame extends IcyFrame {
 	private static final String SPEED = "speed";
 
 	public RemoteFrame(MicroscopeRemotePlugin plugin) {
-		super("Remote", true, true, true, true);
+		super("Remote", false, true, true, true);
 		this.plugin = plugin;
 
 		// LOAD ALL IMAGES
@@ -129,6 +129,7 @@ public class RemoteFrame extends IcyFrame {
 
 			@Override
 			protected void paintComponent(Graphics g) {
+				checkInverts();
 				if (imgRemoteBg == null) {
 					super.paintComponent(g);
 				} else {
@@ -325,9 +326,7 @@ public class RemoteFrame extends IcyFrame {
 		Preferences root = Preferences.userNodeForPackage(getClass());
 		_prefs = root.node(root.absolutePath() + "/" + REMOTE);
 		_sliderSpeed.setValue(_prefs.getInt(SPEED, 1));
-		_cbInvertX.setSelected(StageMover.isInvertX());
-		_cbInvertY.setSelected(StageMover.isInvertY());
-		_cbInvertZ.setSelected(StageMover.isInvertZ());
+		checkInverts();
 	}
 
 	void refresh() {
@@ -341,6 +340,12 @@ public class RemoteFrame extends IcyFrame {
 
 	void setEnable(boolean b) {
 		getContentPane().setEnabled(b);
+	}
+	
+	private void checkInverts() {
+		_cbInvertX.setSelected(StageMover.isInvertX());
+		_cbInvertY.setSelected(StageMover.isInvertY());
+		_cbInvertZ.setSelected(StageMover.isInvertZ());
 	}
 
 	public class PanelMoverXY extends JPanel implements MouseListener, MouseMotionListener {

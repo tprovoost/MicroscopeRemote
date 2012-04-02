@@ -38,7 +38,7 @@ public class InverterCheckBox extends JCheckBox {
 
 	@Override
 	protected void paintComponent(Graphics g) {
-//		super.paintComponent(g);
+		super.paintComponent(g);
 		boolean selected = isSelected();
 		String text = getText();
 		Font f = new Font("Arial", Font.BOLD, 16);
@@ -49,8 +49,9 @@ public class InverterCheckBox extends JCheckBox {
 		g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2.setFont(f);
 		FontMetrics fm = g2.getFontMetrics();
+		g2.setColor(new Color(39, 39, 39, 255));
+		g2.fillRect(0, 0, getWidth(), height);
 		g2.setColor(Color.lightGray);
-//		g2.fillRect(0, 0, getWidth(), height);
 
 		// Draw the knob
 		if (selected) {
