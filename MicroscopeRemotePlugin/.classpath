@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/MicromanagerPlugin"/>
 	<classpathentry kind="var" path="ICY_HOME/icy.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/MicromanagerPlugin"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

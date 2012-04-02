@@ -376,13 +376,16 @@ public class RemoteFrame extends IcyFrame {
 		}
 
 		@Override
-		public void paint(Graphics g) {
+		public void paintComponent(Graphics g) {
+			super.paintComponent(g);
 			int w = getWidth();
 			int h = getHeight();
 			Shape shape;
 			AffineTransform at;
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(new Color(39,39,39));
+			g2.fillRect(0, 0, w, h);
 
 			if (imgXYBg != null) {
 				g2.setColor(transparentColor);
@@ -632,11 +635,14 @@ public class RemoteFrame extends IcyFrame {
 		}
 		
 		@Override
-		public void paint(Graphics g) {
+		public void paintComponent(Graphics g) {
+			super.paintComponent(g);
 			int w = getWidth();
 			int h = getHeight();
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setColor(new Color(39,39,39));
+			g2.fillRect(0, 0, w, h);
 
 			if (imgZBg != null && imgZBar != null) {
 				// draw the background + joystick
