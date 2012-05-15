@@ -759,4 +759,16 @@ public class RemoteFrame extends IcyFrame {
 		}
 	}
 
+	@Override
+	public void externalize() {
+		super.externalize();
+		pack();
+	}
+	
+	@Override
+	public void internalize() {
+		super.internalize();
+		pack();
+	}
+	
 }
