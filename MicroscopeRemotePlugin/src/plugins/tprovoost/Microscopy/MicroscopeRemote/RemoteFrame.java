@@ -34,6 +34,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.util.LinkedList;
 import java.util.prefs.Preferences;
 
 import javax.swing.BorderFactory;
@@ -64,7 +65,7 @@ import plugins.tprovoost.Microscopy.MicroscopeRemote.gui.RemoteSlider;
  * 
  * @author Thomas Provoost
  */
-public class RemoteFrame extends IcyFrame {
+public class RemoteFrame extends IcyFrame implements StageListener {
 
 	// -------
 	// GUI
@@ -102,6 +103,9 @@ public class RemoteFrame extends IcyFrame {
 	// PREFERENCES
 	// -----------
 	private Preferences _prefs;
+	private PanelMoverXY panelMoverXY;
+	private PanelMoverZ panelMoverZ;
+	private JPanel panelCoords;
 	private static final String REMOTE = "prefs_remote";
 	private static final String SPEED = "speed";
 
@@ -138,7 +142,7 @@ public class RemoteFrame extends IcyFrame {
 
 					g2.setColor(transparentColor);
 					g2.fillRect(0, 0, getWidth(), getHeight());
-					g2.drawImage(ImageUtil.scaleImage(imgRemoteBg,getWidth(), getHeight()), null, 0,0);
+					g2.drawImage(ImageUtil.scaleImage(imgRemoteBg, getWidth(), getHeight()), null, 0, 0);
 					g2.dispose();
 				}
 			}
@@ -154,9 +158,11 @@ public class RemoteFrame extends IcyFrame {
 		// ------------
 		JPanel panelMover = GuiUtil.generatePanel();
 		panelMover.setLayout(new BoxLayout(panelMover, BoxLayout.X_AXIS));
-		panelMover.add(new PanelMoverXY());
+		panelMoverXY = new PanelMoverXY();
+		panelMover.add(panelMoverXY);
 		panelMover.add(Box.createRigidArea(new Dimension(20, 10)));
-		panelMover.add(new PanelMoverZ());
+		panelMoverZ = new PanelMoverZ();
+		panelMover.add(panelMoverZ);
 		panelMover.setOpaque(false);
 		panelMover.setBackground(transparentColor);
 		panelAll.add(panelMover);
@@ -234,7 +240,7 @@ public class RemoteFrame extends IcyFrame {
 		JButton btnHelp = new JButton("?") {
 			/** */
 			private static final long serialVersionUID = 1L;
-						
+
 			@Override
 			public void paint(Graphics g) {
 				if (imgMemBtnOn == null || imgMemBtnOff == null) {
@@ -244,12 +250,12 @@ public class RemoteFrame extends IcyFrame {
 					int h = getHeight();
 					Graphics2D g2 = (Graphics2D) g.create();
 					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-					
+
 					if (isSelected())
 						g2.drawImage(imgMemBtnOn, 0, 0, w, h, null);
 					else
 						g2.drawImage(imgMemBtnOff, 0, 0, w, h, null);
-					g2.setFont(new Font("Arial",Font.BOLD,16));
+					g2.setFont(new Font("Arial", Font.BOLD, 16));
 					FontMetrics fm = g2.getFontMetrics();
 					g2.setColor(Color.LIGHT_GRAY);
 					g2.drawString("?", getWidth() / 2 - fm.charWidth('?') / 2, getHeight() / 2 + fm.getHeight() / 3);
@@ -280,14 +286,23 @@ public class RemoteFrame extends IcyFrame {
 		// -----------
 		// COORDINATES
 		// ----------
-		_lblX = new JLabel("X: 0.0000 µm");
+		double [] vals;
+		try {
+			vals = StageMover.getXYZ();
+			_lblX = new JLabel("X: " + StringUtil.toString(vals[0], 2) + " µm");
+			_lblY = new JLabel("Y: " + StringUtil.toString(vals[1], 2) + " µm");
+			_lblZ = new JLabel("Z: " + StringUtil.toString(vals[2], 2) + " µm");
+		} catch (Exception e) {
+			_lblX = new JLabel("X: 0.0000 µm");
+			_lblY = new JLabel("Y: 0.0000 µm");
+			_lblZ = new JLabel("Z: 0.0000 µm");
+		}
+		
 		_lblX.setHorizontalAlignment(SwingConstants.CENTER);
-		_lblY = new JLabel("Y: 0.0000 µm");
 		_lblY.setHorizontalAlignment(SwingConstants.CENTER);
-		_lblZ = new JLabel("Z: 0.0000 µm");
 		_lblZ.setHorizontalAlignment(SwingConstants.CENTER);
 		// JPanel panel_coords = GuiUtil.generatePanel("Current Position");
-		JPanel panelCoords = new JPanel(new GridLayout(3, 1));
+		panelCoords = new JPanel(new GridLayout(3, 1));
 		panelCoords.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 		panelCoords.setOpaque(false);
 		panelCoords.setBackground(transparentColor);
@@ -308,15 +323,7 @@ public class RemoteFrame extends IcyFrame {
 		requestFocus();
 		loadPreferences();
 
-		StageMover.addListener(new StageListener() {
-
-			@Override
-			public void stageMoved(final double x, final double y, final double z) {
-				_lblX.setText("X: " + StringUtil.toString(x, 2) + " µm");
-				_lblY.setText("Y: " + StringUtil.toString(y, 2) + " µm");
-				_lblZ.setText("Z: " + StringUtil.toString(z, 2) + " µm");
-			}
-		});
+		StageMover.addListener(this);
 	}
 
 	/**
@@ -336,12 +343,13 @@ public class RemoteFrame extends IcyFrame {
 	@Override
 	public void onClosed() {
 		super.onClosed();
+		StageMover.removeListener(this);
 	}
 
 	void setEnable(boolean b) {
 		getContentPane().setEnabled(b);
 	}
-	
+
 	private void checkInverts() {
 		_cbInvertX.setSelected(StageMover.isInvertX());
 		_cbInvertY.setSelected(StageMover.isInvertY());
@@ -367,7 +375,6 @@ public class RemoteFrame extends IcyFrame {
 			if (imgXYBg == null)
 				System.out.println("\"remote_backgroundXY.png\" not found.");
 			vector = new Point2D.Double(0, 0);
-			thread = new MoveThread();
 			setDoubleBuffered(true);
 			setSize(new Dimension(SIZE_PANEL_MOVER, SIZE_PANEL_MOVER));
 			setPreferredSize(new Dimension(SIZE_PANEL_MOVER, SIZE_PANEL_MOVER));
@@ -384,7 +391,7 @@ public class RemoteFrame extends IcyFrame {
 			AffineTransform at;
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setColor(new Color(39,39,39));
+			g2.setColor(new Color(39, 39, 39));
 			g2.fillRect(0, 0, w, h);
 
 			if (imgXYBg != null) {
@@ -419,8 +426,8 @@ public class RemoteFrame extends IcyFrame {
 				if (Math.abs(vector.getX()) <= 1 && Math.abs(vector.getY()) <= 1) {
 					focusSpotLightGradient = new Point2D.Double(centerBall.getX(), centerBall.getY());
 				} else {
-					focusSpotLightGradient = new Point2D.Double(centerBall.getX() + vector.getX() * (radiusGradient - 5) / normVector, centerBall.getY() + vector.getY() / normVector
-							* (radiusGradient - 5));
+					focusSpotLightGradient = new Point2D.Double(centerBall.getX() + vector.getX() * (radiusGradient - 5) / normVector, centerBall.getY() + vector.getY()
+							/ normVector * (radiusGradient - 5));
 				}
 				float[] dist = { 0.1f, 0.3f, 1.0f };
 				Color[] colors = { new Color(0.9f, 0.9f, 0.9f), Color.LIGHT_GRAY, Color.DARK_GRAY };
@@ -504,9 +511,9 @@ public class RemoteFrame extends IcyFrame {
 				return;
 			MicroscopeCore mCore = MicroscopeCore.getCore();
 			if (mCore.getAvailablePixelSizeConfigs().size() == 0)
-				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.01 * percent * percent);
+				StageMover.moveXYRelative(x * 0.001 * percent * percent, y * 0.001 * percent * percent);
 			else
-				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.01 * percent * percent);
+				StageMover.moveXYRelative(x * 0.001 * mCore.getPixelSizeUm() * percent * percent, y * 0.001 * mCore.getPixelSizeUm() * percent * percent);
 		}
 
 		private double norm(Point2D vector) {
@@ -557,6 +564,7 @@ public class RemoteFrame extends IcyFrame {
 			started = true;
 			stopMoving = false;
 			repaint();
+			thread = new MoveThread();
 			ThreadUtil.bgRun(thread);
 		}
 
@@ -584,7 +592,6 @@ public class RemoteFrame extends IcyFrame {
 				while (!stop) {
 					try {
 						applyMovementXY();
-						repaint();
 					} catch (Exception e) {
 						break;
 					}
@@ -624,6 +631,8 @@ public class RemoteFrame extends IcyFrame {
 		/** Movement Vector */
 		int oldY;
 
+		MoveThread thread;
+
 		private int startPos = 0;
 
 		public PanelMoverZ() {
@@ -633,7 +642,7 @@ public class RemoteFrame extends IcyFrame {
 			addMouseListener(this);
 			addMouseMotionListener(this);
 		}
-		
+
 		@Override
 		public void paintComponent(Graphics g) {
 			super.paintComponent(g);
@@ -641,7 +650,7 @@ public class RemoteFrame extends IcyFrame {
 			int h = getHeight();
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g2.setColor(new Color(39,39,39));
+			g2.setColor(new Color(39, 39, 39));
 			g2.fillRect(0, 0, w, h);
 
 			if (imgZBg != null && imgZBar != null) {
@@ -708,7 +717,9 @@ public class RemoteFrame extends IcyFrame {
 				y = 0;
 			if (y > getHeight())
 				y = getHeight();
-			int movY = e.getY() - oldY;
+			final int movY = e.getY() - oldY;
+			if (movY == 0)
+				return;
 			oldY = e.getY();
 			double ecartNormal = getHeight() / 8d / 2;
 			if (movY > 0) {
@@ -720,12 +731,10 @@ public class RemoteFrame extends IcyFrame {
 				if (startPos < -ecartNormal)
 					startPos = (int) ecartNormal;
 			}
-			int percent = _sliderSpeed.getValue();
-			try {
-				StageMover.moveZRelative(movY * 0.01 * percent * percent);
-			} catch (Exception e1) {
-				System.out.println("Error with Z movement");
-			}
+			final int percent = _sliderSpeed.getValue();
+
+			thread.addOrder(movY * 0.1 * percent * percent);
+
 			repaint();
 		}
 
@@ -749,13 +758,71 @@ public class RemoteFrame extends IcyFrame {
 		public void mousePressed(MouseEvent e) {
 			oldY = e.getY();
 			setCursor(new Cursor(Cursor.N_RESIZE_CURSOR | Cursor.S_RESIZE_CURSOR));
+			thread = new MoveThread();
+			thread.start();
 			repaint();
 		}
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
 			setCursor(Cursor.getDefaultCursor());
+			if (thread != null) {
+				try {
+					double value = StageMover.getZ();
+					thread.setAbsolute(value);
+				} catch (Exception e1) {
+				}
+				thread.stopThread();
+				thread = null;
+			}
 			repaint();
+		}
+
+		class MoveThread extends Thread {
+			LinkedList<Double> orders = new LinkedList<Double>();
+			private boolean run = true;
+			double absoluteValue;
+
+			synchronized void addOrder(Double d) {
+				orders.add(d);
+			}
+
+			public void setAbsolute(double z) {
+				absoluteValue = z;
+			}
+
+			synchronized void stopThread() {
+				run = false;
+			}
+
+			@Override
+			public void run() {
+				while (run) {
+					while (orders.isEmpty()) {
+						if (!run)
+							return;
+						ThreadUtil.sleep(100);
+					}
+					ThreadUtil.sleep(10);
+					try {
+						Double mov = orders.pop();
+						if (mov != null) {
+							StageMover.moveZRelative(mov.doubleValue());
+						}
+					} catch (Exception e1) {
+						// do nothing
+					}
+				}
+				if (absoluteValue != Double.NaN || absoluteValue !=0 )
+					try {
+						StageMover.moveZAbsolute(absoluteValue);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				else
+					System.out.println("no value");
+			}
+
 		}
 	}
 
@@ -764,11 +831,31 @@ public class RemoteFrame extends IcyFrame {
 		super.externalize();
 		pack();
 	}
-	
+
 	@Override
 	public void internalize() {
 		super.internalize();
 		pack();
 	}
-	
+
+	public void stopMovement() {
+		if (panelMoverXY.thread != null) {
+			panelMoverXY.thread.setStop(true);
+			panelMoverXY.thread = null;
+		}
+		if (panelMoverZ.thread != null) {
+			panelMoverZ.thread.stopThread();
+			panelMoverZ.thread = null;
+		}
+	}
+
+	@Override
+	public void stageMoved(final double x, final double y, final double z) {
+		System.out.println("updated: " + x + " / " + y + " / " + z);
+		_lblX.setText("X: " + StringUtil.toString(x, 2) + " µm");
+		_lblY.setText("Y: " + StringUtil.toString(y, 2) + " µm");
+		_lblZ.setText("Z: " + StringUtil.toString(z, 2) + " µm");
+		repaint();
+	}
+
 }
