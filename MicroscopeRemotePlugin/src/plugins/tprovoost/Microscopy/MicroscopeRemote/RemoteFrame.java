@@ -819,8 +819,8 @@ public class RemoteFrame extends IcyFrame implements StageListener {
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
-				else
-					System.out.println("no value");
+				// else
+				// System.out.println("no value");
 			}
 
 		}
@@ -851,7 +851,6 @@ public class RemoteFrame extends IcyFrame implements StageListener {
 
 	@Override
 	public void stageMoved(final double x, final double y, final double z) {
-		System.out.println("updated: " + x + " / " + y + " / " + z);
 		_lblX.setText("X: " + StringUtil.toString(x, 2) + " µm");
 		_lblY.setText("Y: " + StringUtil.toString(y, 2) + " µm");
 		_lblZ.setText("Z: " + StringUtil.toString(z, 2) + " µm");
